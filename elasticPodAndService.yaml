@@ -39,10 +39,12 @@ spec:
   selector:
     app: elasticsearch
   ports:
-  - protocol: TCP
+  - name: http
+    protocol: TCP
     port: 9200  # External port to access Elasticsearch HTTP API
     targetPort: 9200  # The container's internal port
-  - protocol: TCP
+  - name: transport
+    protocol: TCP
     port: 9300  # External port to access Elasticsearch transport
     targetPort: 9300  # The container's internal port
   type: ClusterIP  # Accessible within the cluster only
