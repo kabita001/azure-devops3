@@ -37,11 +37,11 @@ resource "azurerm_kubernetes_cluster" "aks_cluster" {
   # Configures the default node pool for the AKS cluster.
   default_node_pool {
     name                = "clusterpool"          # Name of the node pool.
-    vm_size             = "Standard_B2s"       # Specifies the virtual machine size for the nodes.
+    vm_size             = "Standard_B2ms"       # Specifies the virtual machine size for the nodes.
     auto_scaling_enabled = true                   # Enables auto-scaling for the node pool.
-    node_count          = 3                       # Initial number of nodes.
+    node_count          = 2                       # Initial number of nodes.
     min_count           = 1                       # Minimum number of nodes when scaling down.
-    max_count           = 5                       # Maximum number of nodes when scaling up.
+    max_count           = 3                       # Maximum number of nodes when scaling up.
   }
 
   # Enables system-assigned managed identity for the AKS cluster.
