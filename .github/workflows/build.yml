@@ -1,0 +1,72 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: DockerHub login
+        run: echo "${{secrets.DOCKER_TOKEN}}" | docker login -u "${{secrets.DOCKER_USERNAME}}" --password-stdin
+
+      - name: Build and push docker image to Dockerhub
+        run: |
+          docker build -t kabita0009/azure_devops:${{ github.sha }} . -t kabita0009/azure_devops:latest
+          docker push kabita0009/azure_devops:${{ github.sha }}
+          docker push kabita0009/azure_devops:latest
+
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform init
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: terraform init
+
+      - name: Terraform plan
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          terraform plan -input=false \
+            -var "ARM_CLIENT_ID=$ARM_CLIENT_ID" \
+            -var "ARM_CLIENT_SECRET=$ARM_CLIENT_SECRET" \
+            -var "ARM_TENANT_ID=$ARM_TENANT_ID" \
+            -var "ARM_SUBSCRIPTION_ID=$ARM_SUBSCRIPTION_ID" \
+
+      - name: Terraform apply
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          az login --service-principal --username $ARM_CLIENT_ID --password $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+          terraform apply -input=false -auto-approve \
+            -var "ARM_CLIENT_ID=$ARM_CLIENT_ID" \
+            -var "ARM_CLIENT_SECRET=$ARM_CLIENT_SECRET" \
+            -var "ARM_TENANT_ID=$ARM_TENANT_ID" \
+            -var "ARM_SUBSCRIPTION_ID=$ARM_SUBSCRIPTION_ID" \
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Get credentials from Kubernetes
+        run: |
+          az aks get-credentials --resource-group azure_devops_resource_group --name azure_devops_aks_cluster  
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f pods.yaml
+          kubectl apply -f services.yaml
